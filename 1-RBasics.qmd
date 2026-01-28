@@ -1,7 +1,7 @@
 ---
 title: 'Worksheet 1: R Basics'
-author: ""
-date: ""
+author: "Mia Yancey"
+date: "1/21/26"
 ---
 
 _This is the first in a series of worksheets for History 8500 at Clemson University. The goal of these worksheets is simple: practice, practice, practice. The worksheet introduces concepts and techniques and includes prompts for you to practice in this interactive document. When you are finished, you should change the author name (above), render your document to a pdf, and upload it to canvas. Don't forget to commit your changes as you go and push to github when you finish the worksheet._
@@ -28,9 +28,14 @@ Numbers can be used to do arithmetic.
 ```
 
 (@) You try, multiple two numbers. 
-
+```{r}
+5 * 5
+```
 
 (@) Can you multiply two numbers and then divide by the result? 
+```{r}
+(5 * 5)/3
+```
 
 The next type of value is a **string**. Strings are lines of text. Sometimes these are referred to as character vectors. To create a string, you add text between two quotation marks. For example: 
 ```{r}
@@ -39,7 +44,7 @@ The next type of value is a **string**. Strings are lines of text. Sometimes the
 
 (@) Try to create your own string.
 ```{r}
-
+"Hi I'm Mia"
 ```
 
 You can't add strings using `+` like you can numbers. But there is a function called `paste()` which concatenates character vectors into one. This function is _very_ useful and one you'll use a lot in a variety of circumstances. Here's what that looks like: 
@@ -50,12 +55,12 @@ paste("Hello", "Clemson Graduate Students")
 
 (@) Try it, add two strings together like the above example. 
 ```{r}
-
+paste("Hello","my name is","Mia")
 ```
 
 (@) Can you explain what happened in 2-3 sentences? 
 
-> 
+> The strings are printed one after the other in a single statement. Interestingly, spaces are automatically added between individual strings without adding those spaces to the strings themselves, which isn't the case in languages like python.
 
 The last type are **logical** values like `TRUE` and `FALSE`. (Note that these are all caps.)
 
@@ -95,16 +100,16 @@ Logical Operators allow you to combine or change the results of comparisons.
 ```
 (@) Explain, what does the code on each line above do? 
 
->
+The code tests the validity of each logical statement, printing the boolean value of that statement. (Logic is checked from the outside in when there are multiple checks)
 
 (@) Create your own comparison. 
 ```{r}
-
+(3 != 4 && 6 == 6 ) | 3 < 4
 ```
 
 (@) Can you write code that checks if a year is between 1970 AND 1980? 
 ```{r}
-
+ 1977 < 1980 && 1977 > 1970
 ```
 
 ---
@@ -139,13 +144,15 @@ Whatever you prefer, be consistent and your future self will thank you when your
 
 (@) You try, create a variable and assign it a number: 
 
-```{r}
+```{r} 
+myBirthdayIs <- 26
 
 ```
 
 (@) Can you assign a string to a variable?
 
-```{r}
+```{r} 
+myBirithdayIs <- "April 26"
 
 ```
 
@@ -168,22 +175,33 @@ My.Calculation <- (x + x)*10
 
 (@) You try. Assign a number to x and a number to y. Add those two numbers together.
 ```{r}
-
+x <- 4
+y <- 6
+x * y
 ```
 
 (@) Can you take `x` and `y` and multiply the result by 5? 
 ```{r}
-
+x <- 4
+y <- 6
+(x + y) * 25
 ```
 
 (@) Try creating two variables with names other than `x ` and `y`. Descriptive names tend to be more useful. Can you multiply the contents of your variables? 
 ```{r}
+yearsAlive <- 20
+daysPerYear <- 365
+
+"Days alive: "
+yearsAlive * daysPerYear
 
 ```
 
 (@) Try creating two variables that store strings. Can you concatenate those two variables together? 
 ```{r}
-
+greeting <- "Hello World!"
+intro <- "My name is Mia"
+paste(greeting, intro)
 ```
 
 ### Vectors
@@ -218,7 +236,7 @@ my.numbers * 2
 ```
 (@) Explain in a few sentences, what happened in the code above?
 
->
+> The contents of each index in the vector was multiplied by 2, then printed in order
 
 Lets try something slightly different. 
 ```{r}
@@ -226,11 +244,12 @@ my.numbers[3] * 2
 ```
 (@) Explain in a few sentences, what happened in the code above? 
 
->
+> This version only multiplies index 3 by 2. Index 3 holds 6, so the output is 12. (the fact that indexes start at 1 and not 0 is going to take some getting used to)
 
 (@) You try, create a list of five items and store it in a descriptive variable. 
 ```{r}
-
+birthdays <- c(26,8,19,1,21)
+birthdays
 ```
 
 
@@ -262,14 +281,16 @@ We can ask R to pull up the documentation like this:
 
 (@) Now you try, find the documentation for the function  `signif()`.
 ```{r}
-
+?signif()
 ```
 
 In real life, you typically you wouldn't want to store this code in your script file. You probably don't need to pull up the documentation for the function every time you run that piece of code. But for the purposes of this worksheet we're adding it to our `.Rmd` document. 
 
 (@) Use the console to find the documentation for `floor()`? Try it and then tell me, what does that function do? 
-
->
+```{r}
+floor(3.5)
+```
+>  Returns a vectir containing the smallest integer that doesn't exceed its argument, ie it rounds down to the nearest int
 
 ### Data Frames & Packages
 
@@ -307,7 +328,7 @@ What is going on here? Each line within this function (x,y,z) creates a new colu
 
 (@) What is going on in row z? Can you explain the logic here?
 
->
+> Row z is going row by row, getting the x and y entries for that row, and plugging them into the equation to get that row's z entry
 
 
 ## Loading Dataframes from Packages
@@ -329,7 +350,7 @@ Run `help(package="DigitalMethodsData")` in your console to pull up a list of da
 
 For demonstration purposes we'll use the `gayguides` data here. Pull up the help documentation for this dataset. What does the documentation tell you abou the scope of this dataset? 
 
->
+> This dataset contains information from Bob Dameron's gay guides from 1965-1985. It contains 14 variables
 
 To use a dataset included in this package we first need to load it. We can do so like this:
 
@@ -351,17 +372,17 @@ That gives us the first 6 rows of data. Its really useful if you just want to pe
 
 (@) The default is to print six rows of data. Can you modify the above code to print out the first 10 rows? 
 ```{r}
-
+head(gayguides, n=10)
 ```
 
 (@) Can you find the last 6 rows of data? 
 ```{r}
-
+tail(gayguides)
 ```
 
 (@) Reflect on the previous two prompts. How did you figure these out? 
 
->
+> I looked at the documentation for returning the first or last parts of an object to find the tail function and what to call the second argument in head to specify number of rows.
 
 The `str()` function is another very useful function for understanding a dataset. It compactly displays the internal structure of an R object. 
 ```{r}
@@ -380,28 +401,32 @@ gayguides$title[500]
 
 (@) Break this down. Whats going on here? What do each of the elements of this code mean? (gayguides, $, title, and [500]) 
 
->
+> gayguides is the dataset, $ operator indicates a segment of the dataset, title indicates what column we're segmenting out, and 500 is the row. The row and column combined produce a single cell, which gets returned.
 
 (@) The Year variable contains the year (numeric) of each entry. Can you find the earliest year in this dataset? (Using code, don't cheat and use the documentation!)
 ```{r}
-
+gayGuidesYear <- gayguides[order(gayguides$Year),]
+head(gayGuidesYear)
 ```
-
+1965
 
 (@) How about the latest year? 
 ```{r}
-
+gayGuidesYear <- gayguides[order(gayguides$Year),]
+tail(gayGuidesYear)
 ```
-
+1985
 
 (@) Add another dataset from `DigitalMethodsData`. How many observations are included in this dataset? Run through some of the examples from above to learn about the dataset.
 ```{r}
-
+data(statepopulations)
+head(statepopulations)
+str(statepopulations)
 ```
 
 (@) What did you learn about the dataset? What can you tell me about it? 
 
->
+> There are 84 observations of 28 variables. The dataset records state populations of different states over 10 year intervals.
 
 
 
