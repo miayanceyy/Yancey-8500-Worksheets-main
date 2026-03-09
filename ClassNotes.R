@@ -50,12 +50,19 @@ data(gayguides)
 #  year <-journals[i,]$year
 #  writeLines("a profound insight", paste("journals", "/", title, "_", month, "_", year, ".txt", sep = ""))
 #}
-s.gayguides <- gayguides %>% select(state, city)
+#s.gayguides <- gayguides %>% select(state, city)
 
-rec_data <- read.csv("https://raw.githubusercontent.com/regan008/DigitalMethodsData/main/raw/Recreation-Expenditures.csv")
+#rec_data <- read.csv("https://raw.githubusercontent.com/regan008/DigitalMethodsData/main/raw/Recreation-Expenditures.csv")
 
-cities <- rec_data %>% select(city,total_expenditures) %>% filter(total_expenditures != 0.00) %>% arrange(total_expenditures, decreasing = FALSE)
+#cities <- rec_data %>% select(city,total_expenditures) %>% filter(total_expenditures != 0.00) %>% arrange(total_expenditures)
 
-print(cities)
+#print(cities)
 
+filterCity <- function(myCity){
+    filtered <- gayguides %>% select(title,city,state) %>% filter(city == myCity)
+    print(filtered)
+    print(paste("Total Entries with This City:", filtered %>% summarize(count = n())))
+}
+
+filterCity("Greenville")
 

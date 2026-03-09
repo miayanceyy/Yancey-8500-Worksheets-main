@@ -1,4 +1,21 @@
-### Group_by() and Summarize()
+---
+title: 'Worksheet 5: Advanced Data Manipulation'
+author: "Mia Yancey"
+date: "3/2/26"
+---
+
+_This is the fifth in a series of worksheets for History 8500 at Clemson University. The goal of these worksheets is simple: practice, practice, practice. The worksheet introduces concepts and techniques and includes prompts for you to practice in this interactive document. When you are finished, you should change the author name (above), commit your changes, push to GitHub, and submit the link to your worksheet repository on Canvas. Don't forget to commit your changes as you go - you should make multiple commits as you work through the worksheet, not just one at the end. Also, remember to update your learning log in the `logs/` folder of your repository as you work through the assignment._
+
+Last week you learned the basic dplyr verbs for data manipulation. This week we'll build on those skills with more advanced techniques: grouping data in complex ways, working with categorical data using factors, joining datasets together, and reshaping data between wide and long formats.
+
+```{r}
+library(DigitalMethodsData)
+library(tidyverse)
+data("gayguides")
+data("BostonWomenVoters")
+data("statepopulations")
+```
+## Group_by() and Summarize()
 
 Arrange is useful for finding the highest and lowest values, but it returns those values for the entire dataset. `group_by()`, in contrast, takes an existing tbl and converts it into a grouped tbl where operations are performed "by group". Lets look at what that means in practice: 
 ```{r}
@@ -16,26 +33,86 @@ gayguides %>%
 ```
 What happened here? In this example, we asked group_by to create groups based on year and then in summarize we created a column called count. We passed it the n() function which gives the current group size. What results, is a dataset that lists each year and how many locations that state has. 
 
+You can group by more than one variable at a time. This creates groups for every combination of those variables.
+```{r}
+# Group by both state AND year
+gayguides %>%
+  group_by(state, Year) %>%
+  summarize(count = n()) %>%
+  head(10)
+```
+
+This gives us the count of locations for each state in each year.
+
+You can also create multiple summary columns in a single `summarize()` call:
+```{r}
+BostonWomenVoters %>%
+  group_by(Occupation) %>%
+  summarize(
+    count = n(),
+    avg_age = mean(Age, na.rm = TRUE),
+    min_age = min(Age, na.rm = TRUE),
+    max_age = max(Age, na.rm = TRUE)
+  ) %>%
+  head()
+```
+
+**Note:** The `na.rm = TRUE` argument tells R to remove NA values before calculating. This is important when working with historical data that may have missing values.
+
 (@) You try, use group_by and summarize to find the total number of locations in each state, each year.
 ```{r}
-
+gayguides %>% 
+    select(state, Year) %>%
+    group_by(state,Year) %>%
+    summarize(count = n())
 ```
 
 (@) Summarize can do more than just count rows. Can you use `summarize()` to find the average age for each occupation in the Boston Women Voters data?
 ```{r}
-
+data(BostonWomenVoters)
+BostonWomenVoters %>% 
+  select(Age, Occupation) %>%
+  group_by(Occupation) %>%
+  summarize(meanAge = mean(Age))
 ```
 
 (@) In the `gayguides` data, on average how many locations did each city in South Carolina have between 1970 and 1975?
 ```{r}
+gayguides %>%
+  select(state, city, Year) %>%
+  filter(Year > 1969, Year < 1976, state == "SC") %>%
+  group_by(city) %>%
+  summarize(count = n())
+```
 
+(@) Can you group the gayguides data by state AND type, then count how many of each type of location exists in each state? Which state has the most bars?
+```{r}
+#by type and location
+gayguides %>% 
+  select(state,type) %>%
+  group_by(state,type) %>%
+  summarize(count = n())
+
+#bars and clubs by state
+gayguides %>%
+  select(state, type) %>%
+  filter(grepl("Bars/Clubs", type)) %>%
+  group_by(state) %>%
+  summarize(count = n()) %>%
+  arrange(desc(count))
+#California has the most
 ```
 
 (@) Filter the dataset for only the values in the southernstates list (created in the block below). Then tell me, how many locations were in all the southern states in 1975?
 ```{r}
 southernstates <- c("AL", "AR", "FL", "GA", "KY", "LA", "MD", "MS", "NC", "SC", "TN", "TX", "VI", "WV")
-
+gayguides %>%
+  select(state, Year) %>%
+  filter(state %in% southernstates, Year == 1975) %>%
+  group_by(state) %>%
+  summarize(count = n())
 ```
+
 
 ## Re-Shaping Data: Joins and Pivots
 
@@ -61,12 +138,36 @@ head(almshouse_admissions)
 (@) Below I've downloaded data about each of the census regions. Join this dataset with `gayguides`. Create a data frame that includes each of the regions and the total number of locations in 1980. How many locations appear in the Mountain region in 1980?
 ```{r}
 regions <- read.csv("https://raw.githubusercontent.com/regan008/DigitalMethodsData/main/raw/censusregions.csv")
+gayguidesRegions <- left_join(gayguides, regions, by=c("state" = "State.Code"))
+
+gayguidesRegions %>%
+  select(Year, Region) %>%
+  filter(Year == 1980) %>%
+  group_by(Region) %>%
+  summarize(count = n())
 ```
 
 (@) Explain what you did above. What variable did you join by and why? What results?
+I did a left join joining state in gayguides with State.Code in regions, since these should match each other
 
 (@)How much did LGTBQ life grow between 1970 and 1980? Can you create a data frame that computes the growth in the number of locations between 1970 and 1980 for every state? For every region? 
 ```{r}
+gayguidesRegions <- left_join(gayguides, regions, by=c("state" = "State.Code"))
+
+states1970 <- gayguidesRegions %>%
+  select(Year, state) %>%
+  filter(Year == 1970) %>%
+  group_by(state) %>%
+  summarize(count = n())
+
+states1980 <- gayguidesRegions %>%
+  select(Year, state) %>%
+  filter(Year == 1980) %>%
+  group_by(state) %>%
+  summarize(count = n())
+
+gayguidesRegions %>% 
+  mutate(difference = states1980 - states1970)
 
 ```
 
@@ -86,11 +187,13 @@ sc.parks <- sc.parks %>%
 ```
 
 (@) What did this code do? 
->
+> It essentially rotates the data so rather than having sepperate columns for each year, there is one column for year, decreasing the number of coulumns and increasing the rows
 
 (@) Here's another wide data frame. Can you turn this from a wide to a narrow data frame? 
 ```{r}
 rec.spaces <- read.csv("https://raw.githubusercontent.com/regan008/DigitalMethodsData/main/raw/PlayAreabyType.csv")
+rec.spaces <- rec.spaces %>%
+  pivot_longer(!type, names_to = "year", values_to = "count")
 ```
 
 The opposite of `pivot_longer()` is `pivot_wider()`. It "widens" data by increasing the number of columns and decreasing the number of rows. We can revert `sc.parks` back to a wide dataset using this function.
@@ -101,17 +204,368 @@ sc.parks %>%
 
 (@) Widen the `sc.parks` dataset so that the column names are drawn from the type of recreation worker.
 ```{r}
-
+sc.parks %>%
+  pivot_wider(names_from = type_of_worker, values_from = count)
 ```
 
 (@) Turn `rec.spaces` into a wide dataframe. 
 ```{r}
+rec.spaces %>%
+  pivot_wider(names_from = year, values_from = count)
+```
+
+## Working with Factors using `forcats`
+
+You were introduced to factors at the end of Worksheet 4. Factors are R's way of handling categorical data - things like occupation, location type, region, etc. The `forcats` package (part of tidyverse) provides tools for working with factors.
+
+### Why Factors Matter for Historians
+
+Historical data is full of categories:
+- Occupations (farmer, merchant, laborer...)
+- Location types (bar, restaurant, bookstore...)
+- Geographic regions (Northeast, South, West...)
+
+Factors let you:
+- Control the order categories appear in tables and plots
+- Combine rare categories
+- Rename categories for clarity
+- Ensure consistency
+
+### Creating and Examining Factors
+
+Let's work with the Boston Women Voters data and look at occupations:
+```{r}
+data(BostonWomenVoters)
+
+# Look at the occupations
+head(BostonWomenVoters$Occupation)
+
+# Convert to factor and see the levels
+BostonWomenVoters$Occupation <- as.factor(BostonWomenVoters$Occupation)
+levels(BostonWomenVoters$Occupation)
+```
+
+(@) How many different occupations are there?
+
+> 1137
+
+(@) Look at the levels. Do you notice any that could be combined or standardized? List a few examples.
+
+> (Widow, Widow Retired), (Widow housekeeper, Widow Housekeeper, Widow cleaner)
+
+### `fct_count()` - Counting Factor Levels
+
+Before reordering or combining categories, it's useful to see how many of each you have:
+```{r}
+BostonWomenVoters %>%
+  pull(Occupation) %>%
+  fct_count() %>%
+  arrange(desc(n))
+```
+
+(@) What are the three most common occupations?
+
+> Housewife, at home, housekeeper
+
+### `fct_lump()` - Combining Small Categories
+
+When you have many categories and some are rare, `fct_lump()` combines the smallest categories into "Other":
+```{r}
+BostonWomenVoters %>%
+  mutate(occupation_lumped = fct_lump(Occupation, n = 5)) %>%  # Keep top 5, lump the rest
+  count(occupation_lumped) %>%
+  arrange(desc(n))
+```
+
+This kept the 5 most common occupations and combined everything else into "Other".
+
+(@) Use `fct_lump()` to keep the top 10 occupations. How many voters are in the "Other" category?
+```{r}
+BostonWomenVoters %>%
+  mutate(occupation_lumped = fct_lump(Occupation, n = 10)) %>%
+  count(occupation_lumped) %>%
+  arrange(desc(n))
+```
+4759 are 'other'
+### `fct_reorder()` - Reordering by Another Variable
+
+By default, factors are ordered alphabetically. But often you want them ordered by frequency or some other value. This is especially useful for plotting which we will get to in the next worksheet.
+```{r}
+# Count by occupation
+occupation_counts <- BostonWomenVoters %>%
+  count(Occupation) %>%
+  filter(n > 30)  # Only occupations with more than 30 people
+occupation_counts
+```
+### `fct_reorder()` with Other Variables
+
+You can also reorder by variables other than count. For example, order occupations by average age:
+```{r}
+BostonWomenVoters %>%
+  group_by(Occupation) %>%
+  summarize(avg_age = mean(Age, na.rm = TRUE),
+            count = n()) %>%
+  filter(count > 20) %>%  # Only occupations with at least 20 people
+  mutate(Occupation = fct_reorder(Occupation, avg_age))
+```
+
+(@) Which occupations have the youngest average age? Which have the oldest? What might this tell us historically?
+
+> Cashier and clerk are among the youngest while widows at home are among the oldest, which may indicate that many women left having an occupation outside the house as they got older
+
+### `fct_recode()` - Renaming Factor Levels
+
+Sometimes you need to rename categories for clarity or to fix inconsistencies:
+```{r}
+BWV.occupations <- BostonWomenVoters %>%
+    mutate(
+      Occupation_clean = fct_recode(Occupation,
+        "at home" = "At Home",
+        "at Home" = "At Home",
+        "Book-keeper" = "Bookkeeper"
+      )
+    ) %>%
+    count(Occupation_clean) %>%
+    arrange(desc(n))
+```
+
+(@) Look at the occupation levels. Find at least 3 more occupations that could be recoded to be more standardized or descriptive. Create a new column with your recoded occupations.
+```{r}
+BWV.occupations <- BostonWomenVoters %>%
+    mutate(
+      Occupation_clean = fct_recode(Occupation,
+        "at home" = "At Home",
+        "at Home" = "At Home",
+        "Book-keeper" = "Bookkeeper",
+        "Widow\nhousekeeper" = "Widow-Housekeeper",
+        "Widow\nHousekeeper" = "Widow-Housekeeper",
+        "Widow\ncleaner" = "Widow-Housekeeper"
+      )
+    ) %>%
+    count(Occupation_clean) %>%
+    arrange(desc(n))
+```
+
+### `fct_collapse()` - Combining Multiple Levels into Categories
+
+`fct_collapse()` is like `fct_recode()` but designed for grouping many categories into broader themes:
+```{r}
+test <- BostonWomenVoters %>%
+  mutate(
+    occupation_category = fct_collapse(Occupation,
+      "Domestic Work" = c("Housewife", "At Home", "Housekeeper"),
+      "Education" = c("Teacher", "School Teacher"),
+      "Skilled Trade" = c("Dressmaker", "Seamstress", "Milliner"),
+      "Clerical" = c("Clerk", "Stenographer", "Bookkeeper"),
+      "Sales" = c("Saleswoman", "Sales")
+    )
+  ) %>%
+  count(occupation_category) %>%
+  arrange(desc(n))
+```
+Note that this dataset is still really long. We'd have to add all the categories to clean this up fully. But if you look, you'll notice that the new categories are included near the top.
+
+(@) Create your own categorization scheme for occupations. Combine related occupations into 5-7 broader categories that make historical sense. Consider categories like professional, domestic, skilled labor, etc. Explain your reasoning.
+```{r}
+occupations <- BostonWomenVoters %>%
+  mutate(
+    occupation_category = fct_collapse(Occupation,
+      "Domestic Work" = c("Housewife", "At Home", "Housekeeper", "At home", "Cleaner","H.W.","Married","Matron","Laundress"),
+      "Education" = c("Teacher", "School Teacher"),
+      "Skilled Trade" = c("Dressmaker", "Seamstress", "Milliner","Stitcher", "Waitress", "Dressmaker"),
+      "Administrative" = c("Clerk", "Stenographer", "Bookkeeper","Tel. Operator", "Telephone Operator", "Secretary"),
+      "Sales" = c("Saleswoman","Saleslady"),
+      "Health" = c("Nurse")
+    )
+  ) %>%
+  count(occupation_category) %>%
+  arrange(desc(n))
+
+occupations
+```
+
+> Explain your reasoning. 
+I changes clerical to administrative to include telephone operators and other types of office work, domestic may need to be split even further into homemakers and outside domestic help. If I were to split it even further I migth include subcategories for different names for the same job, like the different types of housewife
+
+### `fct_relevel()` - Manual Reordering
+
+Sometimes you want a specific order that isn't alphabetical or by frequency. For example, you might want to order occupations by social/economic status to show income levels on a graph:
+```{r}
+BostonWomenVoters %>%
+  mutate(
+    occupation_category = fct_collapse(Occupation,
+      "Professional" = c("Teacher", "Nurse"),
+      "Clerical" = c("Clerk", "Stenographer"),
+      "Domestic" = c("Housewife", "At Home")
+    ),
+    # Order by typical class hierarchy
+    occupation_category = fct_relevel(occupation_category, 
+                                     "Professional", "Clerical", "Domestic")
+  ) %>%
+  pull(occupation_category) %>%
+  levels()
+```
+
+Now when you use this factor in a plot or table, it will appear in this conceptual order rather than alphabetically.
+
+(@) Create occupation categories and relevel them in an order that makes sense historically. Explain why you chose this order.
+```{r}
+```
+
+> Explanation:
+
+
+## Working with Dates using `lubridate`
+
+Dates in historical data are notoriously messy. They come in different formats, sometimes incomplete, and often require calculation (age, duration, etc.). The `lubridate` package makes working with dates much easier.
+
+### Parsing Dates from Strings
+
+`lubridate` has functions named after date order:
+- `mdy()` - month-day-year (American format): "12/25/2020"
+- `dmy()` - day-month-year (European format): "25/12/2020"  
+- `ymd()` - year-month-day (ISO format): "2020-12-25"
+```{r}
+# Different date formats
+mdy("12/25/2020")
+dmy("25-12-2020")
+ymd("2020-12-25")
+
+# Also work with times
+mdy_hms("12/25/2020 14:30:00")
+```
+
+These all create "Date" objects that R knows how to work with.
+
+(@) Create a vector of dates in different formats and parse them using the appropriate lubridate functions.
+```{r}
+dates <- c("12/01/2009","9/19/2008","04/26/2005","12/30/1979")
+
+mdy(dates)
+```
+
+### Creating Date Columns
+
+Let's create some sample historical data:
+```{r}
+events <- data.frame(
+  event = c("Election", "Treaty Signed", "Battle"),
+  date_string = c("November 5, 1920", "June 28, 1919", "July 1, 1863")
+)
+
+events %>%
+  mutate(date = mdy(date_string))
+```
+
+(@) The `gayguides` data has a Year column but no full dates. Create a date column assuming all entries are from January 1st of that year. (Hint: use `paste()` to create a string like "1970-01-01", then parse it)
+```{r}
+fullYears <- gayguides %>%
+  select(Year) %>%
+  mutate(fullYear = paste(Year,"-01-01", sep=""))
+```
+
+### Extracting Components from Dates
+
+Once you have a proper date, you can pull out pieces:
+```{r}
+dates <- ymd(c("1920-11-05", "1919-06-28", "1863-07-01"))
+
+year(dates)
+month(dates)
+day(dates)
+month(dates, label = TRUE)  # Get month names
+wday(dates, label = TRUE)   # Get day of week
+```
+
+(@) Using the dates you created above for `gayguides`, extract the decade from the date. Compare it to using `floor(Year / 10) * 10` directly on the Year column. Do you get the same result?
+```{r}
+fullYears %>% 
+  decade(fullYear)
+
 
 ```
 
+### Date Arithmetic
+
+You can do math with dates:
+```{r}
+start_date <- ymd("1920-01-01")
+end_date <- ymd("1925-12-31")
+
+# Time between dates
+end_date - start_date
+
+# Add/subtract time
+start_date + days(30)    # 30 days later
+start_date + years(1)    # 1 year later
+start_date + months(6)   # 6 months later
+```
+
+(@) The Boston Women Voters data was collected in 1920. Each person has an age. Calculate each person's approximate birth year using `1920 - Age`. Then create a proper birth date assuming they were born on July 1st of that year.
+```{r}
+BostonWomenVoters %>%
+  select(Age) %>%
+  mutate(birthday = mdy(paste("07-01",1920-Age)))
+```
+
+### Working with Intervals
+```{r}
+# Create an interval
+prohibition <- interval(ymd("1920-01-17"), ymd("1933-12-05"))
+
+# How long was prohibition?
+prohibition / years(1)   # In years
+prohibition / months(1)  # In months
+
+# Was a date during prohibition?
+ymd("1925-06-15") %within% prohibition  # TRUE
+ymd("1935-06-15") %within% prohibition  # FALSE
+```
+
+(@) Create intervals for different decades (1960s, 1970s, 1980s). For each entry in `gayguides`, determine which decade interval it falls into.
+```{r}
+1960s <- interval(ymd("1960-01-01"), ymd("1969-12-31"))
+1970s <- interval(ymd("1970-01-01"), ymd("1979-12-31"))
+1980s <- interval(ymd("1980-01-01"), ymd("1989-12-31"))
+
+datedGayGuides <- gayguides %>%
+  select(Year) %>%
+  mutate(date = mdy(paste("01-01",Year))) %>%
+  mutate
+
+
+
+
+```
+
+### Handling Historical Dates
+
+Historical dates can be tricky when month and day might unknow or not exact. Computers demand specificity and a level of certainty and often times historical sources do not support this. 
+
+For dates where day/month are unknown, you can use the first of the year/month:
+```{r}
+# If you only know the year
+year_only <- ymd(paste0("1920", "-01-01"))
+
+# If you know year and month
+year_month <- ymd(paste0("1920-06", "-01"))
+```
+
+(@) Some historical records might only have a year. Create a function that takes a year and returns a date object for January 1st of that year. Test it with several years.
+```{r}
+createDate <- function(year){
+  return(mdy(paste("01-01",year,sep="")))
+}
+
+createDate(1966)
+```
+
+(@) Reflect: What challenges might you encounter when working with dates in historical sources? How might `lubridate` help address some of these challenges?
+
+> Dates might be incomplete, or might require context as to what a date in that time period might have meant. In that case, intervals like prohobition can be very helpful. It's also helpful to process dates into a uniform standard, because many handwritten recods especially write dates in different formats. lubridate allows these challenges to be fixed at a large scale and quickly, instead of sorting through it by hand.
 
 ## Putting it all together
-Each of the functions covered in this worksheet are valuable tools for manipulating datasets. But they are more powerful when combined. When using them to pair down a dataset, we are asking and answering a question. For example in this code from earlier in our worksheet:
+Each of the functions covered in this worksheet and in last week's worksheet are valuable tools for manipulating datasets. But they are more powerful when combined. When using them to pair down a dataset, we are asking and answering a question. For example in this code from earlier in our worksheet:
 ```{r}
 gayguides %>% 
     select(title, Year) %>%
@@ -121,27 +575,96 @@ gayguides %>%
 The implicit question was, "How many locations appear in each year?". The `judges` dataset in provided in the DigitalMethodsData package is a large, messy, wide dataframe that contains a lot of information. Look at this dataframe and then compose a question to ask of the data.
 
 (@) First, tell me, what is the question you are asking? 
+How many female judges were appointed by each respective president
 ```{r}
+data(judges)
+head(judges)
 
 ```
 
 (@) Now write some code to address that question. Comment the code with notes that explain your thinking as you go. Use functions like select(), filter(), etc to pair down your dataset and reshape it to address your question. 
 ```{r}
+judges %>%
+  #select the data we're working with
+  select(Appointing.President..1.,Gender) %>%
+  #filter for only female judges
+  filter(Gender == "Female") %>%
+  #group by appointing president
+  group_by(Appointing.President..1.) %>%
+  #summarize the count of each group
+  summarize(count = n()) %>%
+  #arrange in descending order
+  arrange(desc(count))
 
 ```
 
 (@) Now ask a question of the `gayguides` data (or another dataset of your choice). What is the question you are asking? 
 ```{r}
+How many of the women in the Boston Women Voters dataset lived in the same Ward, or on each street, were some streets more likely to vote than others? That might mean that women in those areas were influenced by their neighbors or social groups
 
+head(BostonWomenVoters)
 ```
 
 (@) Now write some code to address that question. Comment the code with notes that explain your thinking as you go. Use functions like select(), filter(), etc to pair down your dataset and reshape it to address your question. 
 ```{r}
-
+BostonWomenVoters %>%
+  #select data we're working with
+  select(Street.of.Residence.on.April.1,Ward) %>%
+  #group by ward and street
+  group_by(Ward,Street.of.Residence.on.April.1) %>%
+  #summarize and arrange
+  summarize(count = n()) %>%
+  arrange(desc(count))
+#we can see in the results that several streets had over 100 women with voting records, and of the highest, 5 were in Ward 8. This might indicate some social or community influence.
 ```
 
 (@) Write a function that filters the gay guides dataset. It should accept 2 arguments: year and state. When passed to the function the function should return only the title, type, state and year for each entry. 
 ```{r}
+yearState <- function(myYear, myState){
+ return(gayguides %>%
+  select(title, type, state, Year) %>%
+  filter(state == myState, Year == myYear))
+}
+
+yearState(1979,"SC")
 
 ```
+
+(@) Lets try another, using the BostonWomenVoters data, answer this question: "How did the age distribution of women in different occupational categories vary across wards?"
+
+Your analysis should:
+- Remove any rows with missing Age or Ward data
+- Create broader occupation categories using `fct_collapse()` or `fct_lump()`
+- Group by Ward and your occupation categories
+- Calculate average age, minimum age, and maximum age for each group
+- Arrange the results in a meaningful way
+```{r}
+data(BostonWomenVoters)
+BostonWomenVoters %>%
+  mutate(
+    occupation_category = fct_collapse(Occupation,
+      "Domestic Work" = c("Housewife", "At Home", "Housekeeper", "At home", "Cleaner","H.W.","Married","Matron","Laundress"),
+      "Education" = c("Teacher", "School Teacher"),
+      "Skilled Trade" = c("Dressmaker", "Seamstress", "Milliner","Stitcher", "Waitress", "Dressmaker"),
+      "Administrative" = c("Clerk", "Stenographer", "Bookkeeper","Tel. Operator", "Telephone Operator", "Secretary"),
+      "Sales" = c("Saleswoman","Saleslady"),
+      "Health" = c("Nurse")
+    ) 
+  ) %>%
+  group_by(Ward,occupation_category) %>%
+  summarize(
+    count = n(),
+    avg_age = mean(Age, na.rm = TRUE),
+    min_age = min(Age, na.rm = TRUE),
+    max_age = max(Age, na.rm = TRUE)
+  ) %>%
+  arrange(desc(count))
+  
+
+```
+
+(@) What did you discover? Write 2-3 sentences about what this tells us about Boston women voters.
+
+> Administrative positions tended to skew younger, while domestic work tended to be somewhat consistent. Domestic work was also the largest categories among many wards, with administrative the next lowest. This is likely because they hold the most occupations in their categories, but in general many women were in domestic postitions for themselves or others, with fewer in more skilled positions.
+
 
