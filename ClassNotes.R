@@ -1,6 +1,6 @@
-library(tidyverse)
-library(DigitalMethodsData)
-data(gayguides)
+#library(tidyverse)
+#library(DigitalMethodsData)
+#data(gayguides)
 #if(BostonWomenVoters$Occupation[4] == "Housewife"){
  #   print("Housewife Found!")
 #} else {
@@ -58,11 +58,20 @@ data(gayguides)
 
 #print(cities)
 
-filterCity <- function(myCity){
-    filtered <- gayguides %>% select(title,city,state) %>% filter(city == myCity)
-    print(filtered)
-    print(paste("Total Entries with This City:", filtered %>% summarize(count = n())))
-}
+#filterCity <- function(myCity){
+#    filtered <- gayguides %>% select(title,city,state) %>% filter(city == myCity)
+#    print(filtered)
+#    print(paste("Total Entries with This City:", filtered %>% summarize(count = n())))
+#}
 
-filterCity("Greenville")
+#filterCity("Greenville")
+
+library(tidyverse)
+library(DigitalMethodsData)
+library(ggplot2)
+data(gayguides)
+
+top_states <- gayguides %>% count(state, sort=TRUE) %>% head(3) %>% pull(state)
+
+
 
