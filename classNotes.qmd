@@ -1,0 +1,24 @@
+Notes for Digital History 4/6/26
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(tidytext) 
+#library(readtext)
+#library(widyr)
+#library(SnowballC)
+
+tiny_corpus <-data.frame(
+    doc_id = c("FDR_1933", "Lincoln_1863"),
+    text = c("The only thing we have to fear is fear itself", "We have a government of the people, by the people, and for the people")
+)
+
+tiny_corpus %>% 
+    unnest_tokens(word, text) %>% 
+    anti_join(stop_words) %>%
+    count(doc_id, word, sort=TRUE) %>% 
+    bind_tf_idf(word, doc_id, n) %>%
+    arrange(desc(tf_idf))
+    
+    #pivot_wider(names_from = word, values_from = n, values_fill = 0)
+
+```
