@@ -443,9 +443,13 @@ metadata <- read.csv("https://raw.githubusercontent.com/regan008/8510-TextAnalys
 
 wc <- readtext(paste(getwd(), "/TheWomanCitizen/*.txt", sep=""))
 
-tidy_wc <- wc %>%
+wc_full <- left_join(wc, metadata, by=c("doc_id"="filename"))
+
+tidy_wc <- wc_full %>%
   unnest_tokens(word, text) %>% 
   anti_join(stop_words) 
+
+
 
 ```
 
@@ -464,8 +468,8 @@ wc_voter <- tidy_wc %>%
   filter(word %in% c("voter")) %>% 
   count(doc_id, word) %>%
   arrange(desc(n))
-  
-
+ 
+ggplot(wc_sufferage, aes(x = doc_id, y = n )) + geom_line() + geom_point()
 
 
 

@@ -1,10 +1,10 @@
 ---
 title: 'Worksheet 6: Topic Modeling'
-author: ''
-date: ''
+author: 'Mia Yancey'
+date: '4/13/26'
 ---
 
-_This is the sixth in a series of worksheets for History 8500 at Clemson University. The goal of these worksheets is simple: practice, practice, practice. The worksheet introduces concepts and techniques and includes prompts for you to practice in this interactive document. When you are finished, you should change the author name (above), render your document to a pdf, and upload it to canvas. Don't forget to commit your changes as you go and push to github when you finish the worksheet._
+_This is the eigth in a series of worksheets for History 8500 at Clemson University. The goal of these worksheets is simple: practice, practice, practice. The worksheet introduces concepts and techniques and includes prompts for you to practice in this interactive document. When you are finished, you should change the author name (above), commit your changes, push to GitHub, and submit the link to your worksheet repository on Canvas. Don't forget to commit your changes as you go - you should make multiple commits as you work through the worksheet, not just one at the end. Also, remember to update your learning log in the `logs/` folder of your repository as you work through the assignment._
 
 Text analysis is an umbrella for a number of different methodologies. Generally speaking, it involves taking a set (or corpus) of textual sources, turning them into data that a computer can understand, and then running calculations and algorithms using that data. Typically, at its most basic level, that involves the counting of words.
 
@@ -56,19 +56,24 @@ For topic modeling, we need a Document Term Matrix, or a DTM. Topic Modeling has
 tidy_ac_words <- tidy_ac %>% count(filename, word)
 ```
 
-Now we can use `cast_dtm()` to turn `tidy_mb_words` into a dtm. 
+Now we can use `cast_dtm()` to turn `tidy_ac_words` into a dtm. 
 
 ```{r}
 ac.dtm <- tidy_ac_words %>% 
-  count(filename, word) %>% 
   cast_dtm(filename, word, n)
 ```
 
-If you run `class(mb.dtm)` in your console you will notice that it now has a class of "DocumentTermMatrix". 
+If you run `class(ac.dtm)` in your console you will notice that it now has a class of "DocumentTermMatrix". 
 
 Now that we have a dtm, we can create a topic model. For this, we'll use the topic models package and the `LDA()` function. Take a minute and read the documentation for `LDA()`.
 
 There are two important options when running `LDA()`. The first is k which is the number of topics you want the model to generate. What number topics you generate is a decision that often takes some experimentation and depends on the size of your corpus. The American City corpus isn't that bigbut still has over 209k words. In this instance, because the corpus is so small we're going to start with a small number of topics. Going above 5 causes errors with this particular corpus. Later, when you work with a different corpus you should experiment with changing the number of topics from 10 to 20 to 30 to 50 to see how it changes your model. 
+
+How do you know if you've chosen a good k value?
+- Topics should be interpretable and distinct from each other. 
+- If topics seem too similar or generic, try fewer topics.
+- If topics seem to mix unrelated concepts, try more topics.
+- Theres no "right" answer. Its about whats useful for your research question.
 
 The second important option when running `LDA()` is the seed option. You don't worry too much about what setting the seed does, but put simply - it ensures the output of the model is predictable and reproducible. Using the seed ensures that if you come back to your code later or someone else tries to run it, the model will return exactly the same results. 
 
@@ -80,7 +85,12 @@ ac.lda
 
 Now we have a LDA topic model that has 5 topics. There are two ways to look at this model: word-topic probabilities and document-topic probabilities. 
 
-Lets start with **word-topic probabilities.**
+LDA topic models have 2 key probability matricies: 
+
+* **Beta (word-topic probabilities)**: How much does each word contribute to each topic?
+* **Gamma (document-topic probabilities)**: How much of each document belongs to each topic?
+
+We will look at both. Lets start with the beta values or the **word-topic probabilities.**
 
 Every topic is made up of words that are most associated with that topic. Together these words typically form some sort of theme. To understand what this looks like the easiest thing to do is create a bar chart of the top terms in a topic. 
 
@@ -101,19 +111,41 @@ ac.top.terms %>%
   facet_wrap(~ topic, scales = "free") +
   scale_y_reordered()
 ```
+
+Note the `scales = free` option in facet_wrap. This lets each facet (topic) have its own y-axis scale. Without this, topics with lower beta values would be hard to see because they'd all share the same scale. Try removing this option to see the difference. 
+
 (@) Can you adjust the code above to show the top 10 words from just one topic?
 ```{r}
+ac.top.terms <- ac.topics %>%
+  arrange(desc(beta)) %>% 
+  group_by(topic) %>% slice(1:10) %>%
+  filter(topic == 1)
 
+ac.top.terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
 ```
 
 Another useful way to look at the words in each topic is by visualizing them as a wordcloud.
 ```{r warning=FALSE}
 library(wordcloud)
-topic1 <- ac.topics %>% filter(topic == 2)
+topic1 <- ac.topics %>% filter(topic == 4)
 wordcloud(topic1$term, topic1$beta, max.words = 100, random.order = FALSE,
     rot.per = 0.3, colors = brewer.pal(6, "Dark2"))
 ```
 
+(@) Look at the topic words in each topic. Can you give each topic a descriptive label based on what it seems to be about? For example, if a topic has words like "street", "traffic", "paving", and "sidewalk," you might call it "Urban Infrastructure."
+
+Topic 1: Services
+Topic 2: Pricing
+Topic 3: Streets, parking, and cars
+Topic 4: This and 5 seem very similar, calling this one public access
+Topic 5: Going to call this emergency services
+
+Not all topics will be immediately interpretable and that is normal. Some might be ocr errors or gibberish rather than meaningful themes. 
 
 Now we can see what words are most common in each topic. But the document-topic probabilities are also useful for understanding what topics are prevalent in what documents. Just as each topic is made up of a mixture of words, the LDA algorithm also assumes that each topic is made up of a mixture of topics. 
 
@@ -143,45 +175,157 @@ ggplot(data=topics.by.year, aes(x=issue_date, y=gamma)) + geom_bar(stat="identit
 
 Using this we can tell that topic 5, which from earlier had the words improve, grow, ties, contracts, and gasoline as the top five words, is most prominent in January 1915. 
 
-(@) Use the rest of this worksheet to experiment with topic modeling. I've added the code to download a much larger dataset - the issues of Mind and Body. This corpus has 413 documents ranging from the 1890s to 1936. You'll want to start with at least 25 topics. 
+## When Topic Modeling Can be Misleading
+
+Topic modeling works best with:
+- Large corpora
+- Documents that have multiple topics
+
+It will struggle with very small corpora, very short documents (like tweets or social media posts, headlines etc), documents about a single focused topic. 
+
+## Puting it all together: Topic Modeling a Historical Corpus
+
+For the final portion of this worksheet, you'll apply topic modeling to a historical corpus from the [8510-TextAnalysisData repository](https://github.com/regan008/8510-TextAnalysisData). Choose a corpus that interests you - options include Mind and Body (physical education), Woman's Journal (suffrage), and others.
+
+### Step 1: Choose Your Corpus and Research Question
+
+Before you start coding, articulate what you want to explore:
+
+(@) What corpus did you choose and why?
+
+> I'm choosing the information bulletin, because I'm interested in exploring how the information in the bulletins changes over time, and what topcs are considered important enough to be covered
+
+(@) What historical question(s) could topic modeling help you explore with this corpus? (Examples: How did discourse change over time? What topics dominated during specific periods? Can we detect shifts related to major historical events?)
+
+> Are the shifts in topics covered indicitave of major historical events, and more interestingly, are shifts in sentiments displayed preceeding these major events that indicate the populations mindset and the factors that might have contributed to the major events
+
+### Step 2: Build Your Topic Model
+
 ```{r}
-#| eval: false
-download.file("https://github.com/regan008/8510-TextAnalysisData/blob/main/MindAndBody.zip?raw=true", "MB.zip")
-unzip("MB.zip")
+# Download and load your chosen corpus
+download.file("https://github.com/regan008/8510-TextAnalysisData/blob/main/InfoBulletin.zip?raw=true", "InfoBulletin.zip")
+unzip("InfoBulletin.zip")
+# Join with metadata
+metadata <- read.csv("https://raw.githubusercontent.com/regan008/8510-TextAnalysisData/main/ib-metadata.csv")
+meta <- as.data.frame(metadata)
+
+file_paths <- system.file("InfoBulletin/")
+ib_texts <- readtext(paste("InfoBulletin/", "*.txt", sep=""))
+ib_whole <- full_join(meta, ib_texts, by = c("filename" = "doc_id")) %>% as_tibble() 
+
+# Tokenize and clean
+
+tidy_ib <- ib_whole %>%
+  unnest_tokens(word, text) %>% 
+  filter(str_detect(word, "[a-z']$")) %>% 
+  anti_join(stop_words)
+
+tidy_ib <- tidy_ib %>% filter(!grepl('[0-9]', word), !(word %in% c("german", "germans", "germany","lk")))
+
+
 ```
 
 ```{r}
-# Metadata that includes info about each issue.
-mb.metadata <- read.csv("https://raw.githubusercontent.com/regan008/8510-TextAnalysisData/main/mb-metadata.csv")
+# Create your document-term matrix
+tidy_ib_words <- tidy_ib %>% count(filename, word)
+ib.dtm <- tidy_ib_words %>% 
+  cast_dtm(filename, word, n)
+
 ```
 
-(@) What happens if you create a custom stopword list? How does this change the model?
 ```{r}
+# Experiment with different k values (number of topics)
+# Start with k = 10, then try 15, 20, 25, etc. Sometimes the "right" number of topics will be an odd number like 12.
+# What number gives you the most interpretable topics?
+ib.lda <- LDA(ib.dtm, k = 8, methods = "Gibbs",control = list(seed = 12345))
+
+ib.topics <- tidy(ib.lda, matrix = "beta")
+ib.top.terms <- ib.topics %>%
+  arrange(desc(beta)) %>% 
+  group_by(topic) %>% slice(1:10)
 
 ```
 
-(@) Can you create a topic model for just the documents in the 1920s? How does that change the model? 
+(@) How many topics did you settle on? Why did you choose this number?
+
+> I chose 8 topics, because that was about the point I felt like the topics started to settle into clear distinctions that I could interpret. Any more and topics seemed to start heavily overlapping with each other.
+
+### Step 3: Interpret Your Topics
+
 ```{r}
-
+# Generate top terms for each topic
+#done above
 
 ```
 
-(@) Now, lets return to the Buffalo Bill data from last week. You should be able to use topic modeling to address two of the research questions provided:
+```{r}
+# Visualize top terms
 
-* Can we detect some change over time in promotion language and reception language (marketing and reviewing)? Were there types of characters, scenarios, action promised in promotional material and/or noted in reviews earlier vs later?
-* What can be gleaned from the items tagged as extraneous as far as topics? These are news items that are somehow related to BBWW. Crime, finances, celebrity, etc.
+ib.top.terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+```
 
-To analyze this you should first generate a topic model for the buffalo bill data. Play with the number of topics until you find a number that feels about right for the dataset. I am guessing it'll be in the 8-15 range but you'll need to play with it to see what number gives you the best fit. 
+(@) Label each of your topics based on the top words. What does each topic seem to be about?
 
-To address the first research question, you'll need to plot topics over time. I would create three models, one for all of the data, one for promotion, and one for reception. What do we learn by doing this?
+| Topic Number | Label/Description | Top 5 Words |
+|--------------|-------------------|-------------|
+| 1            | US government     |             |
+| 2            | berlin military zone            |
+| 3            | west germany/berlin             |
+| 4            | military control  |             |
+| 5            | police structure  |             |
+| 6            | youth information |             |
+| 7            | military structure              |
+| 8            | food              |             |
 
-For the second, a general topic model of the extraneous articles will be needed. 
+Top 5 Words:
+1. Federal, American, Governmnet, United, Information
+2. military, government, omgus, berlin, information
+3. berlin, united, soviet, american, government
+4. military, government, page, zone, control
+5. chief, page, branch, berlin, division
+6. berlin, american, information, hicog, united
+7. capt, maj, lt, sk, col
+8. zone, ag, military, omgus, food
 
-Add code blocks below as necessary.
+(@) Are there any topics that don't make sense or seem to mix unrelated concepts? This is normal - not every topic will be interpretable.
 
-(@) Finally, when you are all done. Write up your findings. What research question did you focus on and what did you learn? 
+> The topics actually seemed fairly strong, although there was some heavy overlap of words like berlin, information, and bulletin
+
+### Step 4: Analyze Topics Over Time
+
+```{r}
+# Join document-topic probabilities with metadata
+# Plot topics over time
+ib.documents <- tidy(ib.lda, matrix = "gamma")
+topics.by.year <- full_join(ib.documents, metadata, by = join_by(document == filename))
+
+topics.by.year$issue_date <- paste(topics.by.year$month, " ", topics.by.year$year, sep = "")
+
+topics.by.year <- topics.by.year %>% group_by(topic,year) %>% summarise(mean_val = mean(gamma))
+
+ggplot(data=topics.by.year, aes(x=year, y=mean_val)) + geom_bar(stat="identity") + facet_wrap(~ topic, scales = "free") + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+(@) What patterns do you see? Do certain topics appear more frequently in specific time periods? How does this align with what you know about the historical context?
+
+> Several of the topics saw strong spikes in specifc groups of 2-3 years following the war. In particular is makes sense that the military control and structure topics are strongest nearest the war, while the allied powers, west berlin, and youth information topics are strongest several years afterward
+
+### Step 5: Historical Analysis
+
+(@) Write 3-4 paragraphs analyzing your findings. Address your original research question(s) and connect your computational findings to historical context. What can topic modeling reveal about this corpus that close reading alone might miss? What are the limitations of this approach? 
+
+> I was addressing how the content found in these information bulletins displayed a shift in content in accordance with major historical events, and if these shifts in sentiment could be seen proceeding the events themselves. Interestingly, plotting the topics covered in the bulletin over time revealed a strong shift from mostly military content to coversations around topics like the US and Soviet Union, berlin, youth, and information. This shows an interesting shift in the culture of Berlin as a city and Germany as a whole in the years after the war, when Allied powers started exerting much stronger influence. 
+
+Many of the topics that seemed to be discussed in the 1950-1954 years included words like united, youth, information, berlin, and soviet, which call to mind the east/west berlin split and the issues that divided the two, despite the fact that the Berlin Wall wouldn't be erected until 1961. This gives us an indication that many of these sentiments got their start much earlier than the wall itself. Additionally, the data shows a strong, relatively immediate drop off of military topics after 1947, while discussions of public police structures continued on and off for years longer.
+
+The data in these topics does in fact show that changing public sentiments and the ideas being discussed in these bulletins can proceed major political and social changes by several years.
 
 
-
-**This was the final worksheet for this class. You did it - you learned to code in R! Congrats!**
+---
 
