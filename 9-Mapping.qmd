@@ -1,7 +1,7 @@
 ---
 title: "Worksheet 7: Mapping"
-author: ""
-date: ""
+author: "Mia Yancey"
+date: "4/22/26"
 ---
 
 _This is the seventh in a series of worksheets for History 8500 at Clemson University. The goal of these worksheets is simple: practice, practice, practice. The worksheet introduces concepts and techniques and includes prompts for you to practice in this interactive document. When you are finished, you should change the author name (above), render your document to a pdf, and upload it to canvas. Don't forget to commit your changes as you go and push to github when you finish the worksheet._
@@ -37,13 +37,20 @@ Now we have latitude and longitude coordinates for our data.
 
 (@) Use this approach to geocode the `UndergroundRR` data. 
 ```{r}
-
+data(UndergroundRR)
+urr_coordinates <- undergroundRR %>% geocode(city = City, county = County, state = State, method='osm', lat = latitude, long = longitude)
+head(urr_coordinates)
 ```
 
 
 (@) Geocode the Boston Women Voters dataset. Note that the data does include street addresses but because they are broken into parts - street address number, street, etc - you'll need to combine them into a full address to pass to the geocoding function. 
 ```{r}
 data("BostonWomenVoters")
+bwv.street <- BostonWomenVoters %>% 
+  filter(Ward.Book == 6) %>%
+  mutate(streetaddress = paste(Street.Number.on.April.1, Street.of.Residence.on.April.1))
+
+bwv_coordinates <- bwv.street %>% geocode(address = streetaddress, method='osm', lat = latitude, long = longitude)
 ```
 
 ### Maps with `ggplot()`
@@ -54,7 +61,7 @@ First we need to get a basemap. For this example we'll use the `map_data()` func
 
 (@) Look at the documentation for `map_data()`. Which geographies does this package provide access to?
 
->
+> region, subregion, map, exact
 
 Lets load the base map data for the US. 
 ```{r}
@@ -63,7 +70,7 @@ usa <- map_data("state")
 
 (@) `map_data()` generates a data frame. Take a look at this data frame, what types of data are included? 
 
-> 
+>  group, order, region, subregion, lat, long
 
 
 We can now pass this data to ggplot to create a simple basemap. When we wanted to create a bar plot using `ggplot()` we called `geom_bar`. When we wanted to create a line chart we used `geom_point()` and `geom_line()`. The sample principle applies here and `ggplot()` provides a geom for maps.
@@ -87,12 +94,24 @@ ggplot() +
 
 (@) This map looks slightly funny, but that is because the data includes entries outside of the contiguous United States. Try filtering out those entries and mapping this again. Can you change the color or size of the points? Can you add a title?
 ```{r}
+gg_contig <- gayguides %>%
+  filter(state != "HI")
 
+ggplot() + 
+  geom_map(data = usa, map = usa, aes(long, lat, map_id=region), fill = "lightgray", color = "black") +
+  geom_point(data = gg_contig, mapping = aes(x = lon, y = lat), color = "red")
 ```
 
 (@) Can you map just locations in South Carolina (on a basemap of SC)? 
 ```{r}
+gg_sc <- gayguides %>%
+  filter(state == "SC")
+usa_sc <- usa %>%
+  filter(region == "south carolina")
 
+ggplot() + 
+  geom_map(data = usa_sc, map = usa, aes(long, lat, map_id=region), fill = "lightgray", color = "black") +
+  geom_point(data = gg_sc, mapping = aes(x = lon, y = lat), color = "red")
 ```
 
 (@) Create a map that uses your geocoded data from the Boston Women Voters dataset. 
@@ -160,7 +179,7 @@ ggplot(data = nhgis, aes(fill = AZF001)) +
 
 ```
 (@) In the code above, why filter out Hawaii and Alaska? Try commenting out that line and rerunning the code. What happens? Why might we want to do this? Why might we not want to do this? How does it shape the interpretation?
->
+> We filter out Hawaii and Alaska in this case because they're so far geographically outside the scope of the rest of the data that they force the majority of the data to shrink and distort to include them. Removing them may shift the interpretation if those areas contain outliers or substantially different data, but in this case they don't seem to and removing them allows us to take a closer look at the rest of the data
 
 This is a great start. But using AZF001 (Native born males) as the fill does not create a useful visualization. It doesn't give us a sense of the proportion of that data. There are multiple problems with the map as it is, but one is that the color scale makes this incredibly hard to read. We can fix that by using a scale to break the values of AZF001 into bins and assign each a color. R has a function for this. It comes from the scales pacakge which you may need to install.
 
@@ -174,23 +193,28 @@ This is now much more readable but the numbers represented are simply the raw po
 
 (@) First, create a variable called total_male_pop, with the total foreign and native born male population by summing the variables AZF001 and AZF003. 
 ```{r}
-
+ nhgis_totalpop <- nhgis %>%
+ mutate(total_male_pop = AZF001 + AZF003)
 ```
 
 (@) Now, use the total_male_pop variable and create a variable for the the percentage of foreign born males.
 ```{r}
-
+nhgis_totalpop <- nhgis_totalpop %>%
+ mutate(percent_foreign = (AZF003/total_male_pop) * 100)
 ```
 
 (@) Now map your result. You'll want to replicate the code from the example above, but this time add another layer to the plot - a scale. Here we'll use this scale `scale_fill_continuous("", labels = scales::percent)`
 
 Before you write that code, look up the documentation for the above code (and look at the examples). What does it do? 
 
->
+> The code assigns a scale of colors to the data and maps the data in those colors
 
 Now create the map: 
 ```{r}
-
+library(scales)
+ggplot(data = nhgis_totalpop, aes(fill = percent_foreign)) +
+  geom_sf() + scale_fill_distiller(name="Foregin Born Males", palette = "Spectral" , breaks = pretty_breaks(n = 10)) +
+  scale_fill_continuous("", labels = scales::percent)
 ```
 
 ### Leaflet
@@ -220,12 +244,12 @@ leaflet(data=rec.data.coordinates) %>% addTiles() %>% addMarkers(~longitude, ~la
 
 (@) Use leaflet to map a dataset of your choice: 
 ```{r}
-
+leaflet(data=urr_coordinates) %>% addTiles() %>% addMarkers(~longitude, ~latitude, popup = paste("Location of ", urr_coordinates$First.Middle.Name, " ", urr_coordinates$Last.Name, sep=""))
 ```
 
 (@) Explain what choices you made in building this map? Why might you use leaflet over ggplot? When would ggplot be more desirable? 
 
->
+> 
 
 
 ### Exercises
